@@ -152,26 +152,25 @@ new_image_array[:,:,0] = intensity[2:-2,2:-2].astype('uint8')
 new_image_array[:,:,1] = np.reshape(new_Cb, shape).astype('uint8')
 new_image_array[:,:,2] = np.reshape(new_Cr, shape).astype('uint8')
 
-# 计算图像块的大小
-block_size = new_image_array.size  # 这里假设 new_image_array 是一个 numpy 数组
-
 # 在rank 0上创建一个接收最终图像的数组
-
-    # 假设我们知道最终图像的形状
-final_image_shape = (256, 320, 3)  # 需要根据实际情况调
-
 if rank == 0:
     # 假设我们知道最终图像的形状
-    final_image_shape = (256, 320, 3)  # 需要根据实际情况调整
+    final_image_shape = (height, width, channels)  # 需要根据实际情况调整
     recvbuf = np.empty(final_image_shape, dtype=np.float64)
 else:
     recvbuf = None
 
-sendbuf = new_image_array.flatten()  # 将图像块扁平化以便发送
-sendcounts = np.array([sendbuf.size for _ in range(size)])  # 每个进程发送的数据量
 
-# 使用Gather收集数据
-comm.Gatherv(sendbuf, recvbuf ,root=0)
+# 使用gather收集数据
+final_image = comm.gather(new_image_array,root=0)
+
+
+if rank == 0:
+    final_image = np.array(final_image)
+    new_image = np.vstack(final_image)
+    print("final_image shape : ",new_image.shape)
+    new_im = Image.fromarray(new_image, mode='YCbCr')
+    new_im.convert('RGB').save(output, 'PNG')
 
 
 
